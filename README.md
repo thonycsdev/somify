@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# somify
 
-## Getting Started
+Economize. Cresça. Conquiste.
 
-First, run the development server:
+A personal finance app built with Next.js — track expenses, categorize
+transactions, and follow your progress toward financial goals.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router)
+- [Chakra UI v3](https://www.chakra-ui.com/) for components
+- PostgreSQL via [`pg`](https://node-postgres.com/) + [`node-pg-migrate`](https://salsita.github.io/node-pg-migrate/)
+- [Zod](https://zod.dev/) for request/response validation
+- [Jest](https://jestjs.io/) for unit and integration tests
+
+## Getting started
+
+Requires Docker (for Postgres) and the Node version in `.nvmrc`.
+
+1. Copy the environment file and fill in the values:
+
+   ```bash
+   cp .env.development.example .env.development  # if present, otherwise create it
+   ```
+
+   Required variables: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`,
+   `POSTGRES_PORT`, `DATABASE_URL`.
+
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Run migrations and start the dev server:
+
+   ```bash
+   pnpm migrate:up
+   pnpm dev
+   ```
+
+   `pnpm dev` starts the Postgres container and the Next.js dev server.
+   Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+```sh
+pnpm dev                # Start Postgres (Docker) + Next.js dev server
+pnpm build              # Production build
+pnpm test               # Run all Jest tests
+pnpm test:watch         # Jest in watch mode
+pnpm test:integration   # Start Postgres + Next.js, then run tests in tests/
+
+pnpm db:start           # Start Postgres container and wait for readiness
+pnpm migrate:create <name>  # Generate a new migration file
+pnpm migrate:up         # Run pending migrations
+pnpm migrate:down       # Roll back last migration
+
+pnpm lint               # Lint only, report errors
+pnpm lint:fix           # Lint + format, auto-fix everything possible
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project structure
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+app/                # Pages and API routes (App Router)
+  api/v1/           # REST endpoints: auth, user, me, transaction, health
+models/             # DB queries and business logic per resource
+schemas/            # Zod schemas mirroring each DB table
+infra/              # Database singleton, Docker Compose, scripts
+migrations/         # node-pg-migrate migration files
+tests/              # Integration tests (*.integration.test.ts)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `CLAUDE.md` for detailed architecture and coding conventions.
 
-## Learn More
+## Testing
 
-To learn more about Next.js, take a look at the following resources:
+```sh
+pnpm test               # unit tests
+pnpm test:integration   # full integration suite against a live server
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Each integration suite resets the database schema before running via
+`orchestrator.resetDatabase()`.

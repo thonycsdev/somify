@@ -10,7 +10,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'odo — Economize. Cresça. Conquiste.',
+  title: 'somify — Economize. Cresça. Conquiste.',
   description:
     'Registre seus gastos, defina metas de economia e acompanhe sua evolução financeira até a liberdade financeira.',
 };

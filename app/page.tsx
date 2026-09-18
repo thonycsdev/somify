@@ -38,7 +38,7 @@ export default function Home(): React.JSX.Element {
         <Container maxW="6xl">
           <HStack justify="space-between" py="3">
             <Link asChild fontWeight="semibold" fontSize="lg">
-              <NextLink href="/">odo</NextLink>
+              <NextLink href="/">somify</NextLink>
             </Link>
             <HStack gap="3">
               <Button asChild variant="ghost" size="sm">
@@ -96,7 +96,7 @@ export default function Home(): React.JSX.Element {
         <Container maxW="6xl">
           <HStack justify="space-between" py="4">
             <Text fontSize="sm" color="fg.muted">
-              &copy; {new Date().getFullYear()} odo. Todos os direitos
+              &copy; {new Date().getFullYear()} somify. Todos os direitos
               reservados.
             </Text>
           </HStack>
