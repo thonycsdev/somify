@@ -2,6 +2,7 @@
 
 import {
   Badge,
+  Button,
   EmptyState,
   Flex,
   Heading,
@@ -10,6 +11,7 @@ import {
   Table,
   Text,
 } from '@chakra-ui/react';
+import NextLink from 'next/link';
 import { useEffect, useState } from 'react';
 import type { TransactionResponse } from '@/schemas/transaction';
 
@@ -68,9 +70,16 @@ export default function Dashboard(): React.JSX.Element {
 
   return (
     <Stack gap="6">
-      <Heading as="h1" size="xl">
-        Transações
-      </Heading>
+      <Flex justify="space-between" align="center">
+        <Heading as="h1" size="xl">
+          Transações
+        </Heading>
+        <Button asChild>
+          <NextLink href="/dashboard/transaction/create">
+            Nova transação
+          </NextLink>
+        </Button>
+      </Flex>
 
       {transactions.length === 0 ? (
         <EmptyState.Root size="lg">
