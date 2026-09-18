@@ -18,30 +18,66 @@ const insertOneTransaction = async (
   data: TransactionRequest,
 ): Promise<TransactionResponse | null> => {
   const result = await database.query(
-    `INSERT INTO 
-        transactions 
-        (user_id,amount_cents,description,category, occurred_at) 
-    VALUES 
-        ($1,$2,$3,$4,$5) 
-    RETURNING *;`,
+    `WITH inserted AS (
+      INSERT INTO
+          transactions
+          (user_id,amount_cents,description,category_id,type,occurred_at)
+      VALUES
+          ($1,$2,$3,$4,$5,$6)
+      RETURNING *
+    )
+    SELECT
+      i.id,
+      i.user_id,
+      i.type,
+      i.amount_cents,
+      i.description,
+      i.occurred_at,
+      i.category_id,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'user_id', c.user_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at
+      ) AS category
+    FROM inserted i
+    JOIN categories c ON c.id = i.category_id;`,
     [
       data.user_id,
       data.amount_cents,
       data.description,
-      data.category,
+      data.category_id,
+      data.type,
       data.occurred_at,
     ],
   );
-  return result ? TransactionResponseSchema.parse(result[0]) : null;
+  return result.length ? TransactionResponseSchema.parse(result[0]) : null;
 };
 
 const getManyByUserId = async (
   userId: string,
 ): Promise<TransactionResponse[]> => {
   const result = await database.query(
-    `SELECT * FROM transactions t  
-    WHERE t.user_id = $1;
-         `,
+    `SELECT
+      t.id,
+      t.user_id,
+      t.type,
+      t.amount_cents,
+      t.description,
+      t.category_id,
+      t.occurred_at,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'user_id', c.user_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at
+      ) AS category
+    FROM transactions t
+    INNER JOIN categories c
+    ON c.id = t.category_id
+    WHERE t.user_id = $1;`,
     [userId],
   );
 
@@ -54,7 +90,24 @@ const getOneById = async (
   userId: string,
 ): Promise<TransactionResponse> => {
   const result = await database.query(
-    `SELECT * FROM transactions t  
+    `SELECT
+      t.id,
+      t.user_id,
+      t.type,
+      t.amount_cents,
+      t.description,
+      t.category_id,
+      t.occurred_at,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'user_id', c.user_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at
+      ) AS category
+    FROM transactions t
+    INNER JOIN categories c
+    ON c.id = t.category_id  
     WHERE t.id = $1
     AND t.user_id = $2;
          `,
@@ -71,18 +124,37 @@ const updateOne = async (
   data: TransactionUpdateRequest,
 ): Promise<TransactionResponse> => {
   const result = await database.query(
-    `UPDATE transactions
-    SET amount_cents = COALESCE($1, amount_cents),
-        description = COALESCE($2, description),
-        category = COALESCE($3, category),
-        occurred_at = COALESCE($4, occurred_at),
-        updated_at = now()
-    WHERE id = $5 AND user_id = $6
-    RETURNING *;`,
+    `WITH updated AS (
+      UPDATE transactions
+      SET amount_cents = COALESCE($1, amount_cents),
+          description = COALESCE($2, description),
+          category_id = $3,
+          occurred_at = COALESCE($4, occurred_at),
+          updated_at = now()
+      WHERE id = $5 AND user_id = $6
+      RETURNING *
+    )
+    SELECT
+      u.id,
+      u.user_id,
+      u.type,
+      u.amount_cents,
+      u.description,
+      u.category_id,
+      u.occurred_at,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'user_id', c.user_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at
+      ) AS category
+    FROM updated u
+    JOIN categories c ON c.id = u.category_id;`,
     [
       data.amount_cents,
       data.description,
-      data.category,
+      data.category_id,
       data.occurred_at,
       id,
       userId,

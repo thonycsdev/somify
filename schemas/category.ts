@@ -14,7 +14,6 @@ export const CategoryCreateRequestSchema = CategorySchema.omit({
   id: true,
   created_at: true,
   updated_at: true,
-  user_id: true,
 });
 
 export const CategoryUpdateRequestSchema = CategorySchema.omit({

@@ -2,15 +2,36 @@ import { faker } from '@faker-js/faker';
 import type { TransactionRequest } from '@/schemas/transaction';
 import orchestrator from '@/tests/common/orchestrator';
 
+beforeAll(async () => {
+  await orchestrator.resetDatabase();
+});
+
+async function createTransactionRequest() {
+  const createdUser = await orchestrator.createUser();
+  const createdSession = await orchestrator.createSession(createdUser.id);
+  const createdCategory = await orchestrator.createCategory(createdUser.id);
+  const transaction: TransactionRequest = {
+    user_id: createdUser.id,
+    amount_cents: +faker.finance.amount({ min: 10, max: 10000, dec: 0 }),
+    type: 'income',
+    description: faker.finance.transactionDescription(),
+    category_id: createdCategory.id,
+    occurred_at: faker.date.recent(),
+  };
+  return { createdUser, createdSession, createdCategory, transaction };
+}
+
 describe('POST /api/v1/transactions', () => {
   test('creates a transaction for the logged-in user', async () => {
     const createdUser = await orchestrator.createUser();
     const createdSession = await orchestrator.createSession(createdUser.id);
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
       amount_cents: +faker.finance.amount({ min: 10, max: 10000, dec: 0 }),
+      type: 'income',
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: faker.date.recent(),
     };
 
@@ -28,19 +49,28 @@ describe('POST /api/v1/transactions', () => {
       id: expect.any(String),
       user_id: transaction.user_id,
       amount_cents: transaction.amount_cents,
+      type: transaction.type,
       description: transaction.description,
-      category: transaction.category,
+      category_id: transaction.category_id,
+      category: {
+        ...createdCategory,
+        created_at: createdCategory.created_at.toISOString(),
+        updated_at: createdCategory.updated_at.toISOString(),
+      },
       occurred_at: transaction.occurred_at.toISOString(),
     });
   });
   test('rejects a non-positive amount', async () => {
     const createdUser = await orchestrator.createUser();
     const createdSession = await orchestrator.createSession(createdUser.id);
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
+
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
       amount_cents: +faker.finance.amount({ max: -1, min: -100, dec: 0 }),
+      type: 'expense',
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     const response = await fetch('http://localhost:3000/api/v1/transaction', {
@@ -64,21 +94,24 @@ describe('GET /api/v1/transactions', () => {
   test('only returns transactions belonging to the caller', async () => {
     const createdUser = await orchestrator.createUser();
     const createdUser2 = await orchestrator.createUser();
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
 
     const createdSession = await orchestrator.createSession(createdUser.id);
     const transaction1: TransactionRequest = {
       user_id: createdUser.id,
+      type: 'expense',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     await orchestrator.createTransaction(transaction1);
     const transaction2: TransactionRequest = {
       user_id: createdUser2.id,
+      type: 'income',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     await orchestrator.createTransaction(transaction2);
@@ -102,11 +135,14 @@ describe('GET /api/v1/transactions/[id]', () => {
   test('returns a single transaction owned by the caller', async () => {
     const createdUser = await orchestrator.createUser();
     const createdSession = await orchestrator.createSession(createdUser.id);
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
+
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
+      type: 'income',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     const createdTransaction =
@@ -129,6 +165,11 @@ describe('GET /api/v1/transactions/[id]', () => {
     expect(responseBody).toEqual({
       ...createdTransaction,
       occurred_at: createdTransaction.occurred_at.toISOString(),
+      category: {
+        ...createdTransaction.category,
+        created_at: createdTransaction.category.created_at.toISOString(),
+        updated_at: createdTransaction.category.updated_at.toISOString(),
+      },
     });
   });
   test('returns 404 for a nonexistent id', async () => {
@@ -151,11 +192,14 @@ describe('GET /api/v1/transactions/[id]', () => {
   });
   test('returns 404 when the transaction belongs to another user', async () => {
     const createdUser = await orchestrator.createUser();
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
+
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
+      type: 'income',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     const createdTransaction =
@@ -181,21 +225,18 @@ describe('GET /api/v1/transactions/[id]', () => {
 
 describe('PATCH /api/v1/transactions/[id]', () => {
   test('updates fields on a transaction owned by the caller', async () => {
-    const createdUser = await orchestrator.createUser();
-    const createdSession = await orchestrator.createSession(createdUser.id);
-    const transaction: TransactionRequest = {
-      user_id: createdUser.id,
-      amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
-      description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
-      occurred_at: new Date(),
-    };
+    const { transaction, createdUser, createdSession } =
+      await createTransactionRequest();
     const createdTransaction =
       await orchestrator.createTransaction(transaction);
+    const createdCategory2 = await orchestrator.createCategory(createdUser.id, {
+      name: 'category2',
+    });
 
     const updatedFields = {
       description: faker.finance.transactionDescription(),
       amount_cents: +faker.finance.amount({ max: 200, min: 101, dec: 0 }),
+      category_id: createdCategory2.id,
     };
 
     const response = await fetch(
@@ -215,17 +256,16 @@ describe('PATCH /api/v1/transactions/[id]', () => {
       ...createdTransaction,
       occurred_at: createdTransaction.occurred_at.toISOString(),
       ...updatedFields,
+      category: {
+        ...createdCategory2,
+        created_at: createdCategory2.created_at.toISOString(),
+        updated_at: createdCategory2.updated_at.toISOString(),
+      },
+      category_id: createdCategory2.id,
     });
   });
   test('returns 404 when the transaction belongs to another user', async () => {
-    const createdUser = await orchestrator.createUser();
-    const transaction: TransactionRequest = {
-      user_id: createdUser.id,
-      amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
-      description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
-      occurred_at: new Date(),
-    };
+    const { transaction } = await createTransactionRequest();
     const createdTransaction =
       await orchestrator.createTransaction(transaction);
     const loggedUser = await orchestrator.createUser();
@@ -254,11 +294,14 @@ describe('DELETE /api/v1/transactions/[id]', () => {
   test('deletes a transaction owned by the caller', async () => {
     const createdUser = await orchestrator.createUser();
     const createdSession = await orchestrator.createSession(createdUser.id);
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
+
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
+      type: 'income',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     const createdTransaction =
@@ -289,11 +332,14 @@ describe('DELETE /api/v1/transactions/[id]', () => {
   });
   test('returns 404 when the transaction belongs to another user', async () => {
     const createdUser = await orchestrator.createUser();
+    const createdCategory = await orchestrator.createCategory(createdUser.id);
+
     const transaction: TransactionRequest = {
       user_id: createdUser.id,
+      type: 'income',
       amount_cents: +faker.finance.amount({ max: 100, min: 1, dec: 0 }),
       description: faker.finance.transactionDescription(),
-      category: faker.finance.transactionType(),
+      category_id: createdCategory.id,
       occurred_at: new Date(),
     };
     const createdTransaction =

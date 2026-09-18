@@ -9,6 +9,7 @@ import {
   UserSchema,
 } from '@/schemas/users';
 import auth from './auth';
+import { category } from './category';
 
 export type { CreateUserRequest, CreateUserResponse };
 
@@ -18,6 +19,7 @@ const createNewUser = async (data: unknown): Promise<CreateUserResponse> => {
   const passwordHashed = await auth.hashPassword(parsed.password);
   const result = await insertNewUser({ ...parsed, password: passwordHashed });
   if (!result) throw new DatabaseError('Erro while creating a new user');
+  await category.insertDefaultCategories(result.id);
   return CreateUserResponseSchema.parse(result);
 };
 

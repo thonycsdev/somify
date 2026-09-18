@@ -2,9 +2,11 @@ import path from 'node:path';
 import { faker } from '@faker-js/faker';
 import { runner } from 'node-pg-migrate';
 import database from '@/infra/database';
+import { category } from '@/models/category';
 import session from '@/models/session';
 import transaction from '@/models/transaction';
 import user, { type CreateUserResponse } from '@/models/user';
+import type { CategoryCreateRequest } from '@/schemas/category';
 import type { TransactionRequest } from '@/schemas/transaction';
 
 const dropSchema = async (): Promise<void> => {
@@ -65,8 +67,21 @@ const createTransaction = async (
       overrides.amount_cents ?? +faker.finance.amount({ min: 10, dec: 0 }),
     description:
       overrides.description ?? faker.finance.transactionDescription(),
-    category: overrides.category ?? faker.finance.transactionType(),
+    category_id: overrides.category_id ?? '',
+    type: overrides.type ?? 'expense',
     occurred_at: overrides.occurred_at ?? new Date(),
+  });
+
+  return createdTransaction;
+};
+
+const createCategory = async (
+  user_id: string,
+  overrides: Partial<CategoryCreateRequest> = {},
+) => {
+  const createdTransaction = await category.createOne({
+    user_id,
+    name: overrides.name ?? faker.finance.transactionType(),
   });
 
   return createdTransaction;
@@ -79,6 +94,7 @@ const orchestrator = {
   createUser,
   createSession,
   createTransaction,
+  createCategory,
 };
 
 export default orchestrator;

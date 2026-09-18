@@ -1,5 +1,10 @@
 import { faker } from '@faker-js/faker';
+import database from '@/infra/database';
 import type { CreateUserRequest } from '@/models/user';
+import {
+  CategoryResponseSchema,
+  DEFAULT_CATEGORY_NAMES,
+} from '@/schemas/category';
 import orchestrator from '@/tests/common/orchestrator';
 
 const BASE_URL = 'http://localhost:3000';
@@ -34,6 +39,20 @@ describe('POST /api/v1/user', () => {
     expect(body.name).toBe(request.name);
     expect(body.created_at).toBeDefined();
     expect(body.password_hash).toBeUndefined();
+
+    const userCategoriesRow = await database.query(
+      'SELECT * FROM categories c WHERE c.user_id = $1',
+      [body.id],
+    );
+    const userCategories = userCategoriesRow.map((x) =>
+      CategoryResponseSchema.parse(x),
+    );
+    console.log({ userCategories });
+    expect(Array.isArray(userCategories)).toBeTruthy();
+    expect(userCategories.length).toBe(DEFAULT_CATEGORY_NAMES.length);
+    userCategories.forEach((cat) => {
+      expect(DEFAULT_CATEGORY_NAMES.includes(cat.name)).toBeTruthy();
+    });
   });
 
   it('rejects duplicate email', async () => {
