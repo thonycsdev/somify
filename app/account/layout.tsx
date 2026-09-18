@@ -10,7 +10,7 @@ export default function AccountLayout({
         <Container maxW="6xl">
           <HStack py="3">
             <Link asChild fontWeight="semibold" fontSize="lg">
-              <NextLink href="/">odo</NextLink>
+              <NextLink href="/">somify</NextLink>
             </Link>
           </HStack>
         </Container>
