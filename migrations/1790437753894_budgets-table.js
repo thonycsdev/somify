@@ -33,7 +33,7 @@ export const up = (pgm) => {
       default: pgm.func("date_trunc('month', current_date)"),
     },
     limit_cents: {
-        type: "integer",
+        type: "bigint",
         notNull: true,
     },
     created_at: {
