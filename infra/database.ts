@@ -1,4 +1,5 @@
 import { Pool, type QueryResultRow } from 'pg';
+import '@/infra/bigint';
 
 export interface Database {
   getPool(): Pool;

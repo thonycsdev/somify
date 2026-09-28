@@ -2,10 +2,12 @@ import path from 'node:path';
 import { faker } from '@faker-js/faker';
 import { runner } from 'node-pg-migrate';
 import database from '@/infra/database';
+import budget from '@/models/budget';
 import { category } from '@/models/category';
 import session from '@/models/session';
 import transaction from '@/models/transaction';
 import user, { type CreateUserResponse } from '@/models/user';
+import type { BudgetCreateRequest } from '@/schemas/budget';
 import type { CategoryCreateRequest } from '@/schemas/category';
 import type { TransactionRequest } from '@/schemas/transaction';
 
@@ -87,6 +89,32 @@ const createCategory = async (
   return createdTransaction;
 };
 
+const createBudget = async (overrides: Partial<BudgetCreateRequest> = {}) => {
+  const createdBudget = await budget.createOne({
+    user_id: overrides.user_id ?? '',
+    category_id: overrides.category_id ?? '',
+    period: overrides.period ?? new Date(),
+    limit_cents: overrides.limit_cents ?? faker.number.bigInt({ min: 10000 }),
+  });
+
+  return createdBudget;
+};
+
+const seedBudget = async () => {
+  const createdUser = await createUser();
+  const createdSession = await createSession(createdUser.id);
+  const createdCategory = await createCategory(createdUser.id);
+  const budgetRequest: BudgetCreateRequest = {
+    user_id: createdUser.id,
+    category_id: createdCategory.id,
+    period: new Date(),
+    limit_cents: faker.number.bigInt({ min: 10000 }),
+  };
+  await createBudget(budgetRequest);
+
+  return { createdUser, createdSession, createdCategory, budgetRequest };
+};
+
 const orchestrator = {
   dropSchema,
   runMigrations,
@@ -95,6 +123,8 @@ const orchestrator = {
   createSession,
   createTransaction,
   createCategory,
+  createBudget,
+  seedBudget,
 };
 
 export default orchestrator;
